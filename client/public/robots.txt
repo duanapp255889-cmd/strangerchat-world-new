@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://randomstrangerchat.com/sitemap.xml
+Sitemap: https://strangerchat.world/sitemap.xml
