@@ -86,6 +86,11 @@ export default function Home() {
   const c = copy[lang];
   const years = useMemo(() => Array.from({ length: 70 }, (_, i) => String(new Date().getFullYear() - i - 16)), []);
 
+  useEffect(() => {
+    document.documentElement.lang = lang;
+    document.title = lang === "vi" ? "Random Stranger Chat — Trò chuyện với người lạ" : "Random Stranger Chat — Talk to Strangers Online";
+  }, [lang]);
+
   useEffect(() => () => { channelRef.current?.unsubscribe(); }, []);
 
   const updateForm = (key: keyof Form, value: string) => setForm((current) => ({ ...current, [key]: value }));
