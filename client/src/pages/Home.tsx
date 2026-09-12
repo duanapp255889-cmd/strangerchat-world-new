@@ -79,7 +79,6 @@ export default function Home() {
   const [form, setForm] = useState<Form>({ gender: "", name: "", year: "", country: "US", city: "" });
   const [session, setSession] = useState<SessionProfile | null>(null);
   const [conversation, setConversation] = useState<Conversation | null>(null);
-  const [botMode, setBotMode] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -87,7 +86,6 @@ export default function Home() {
   const [legalPage, setLegalPage] = useState<LegalPage>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const stepRef = useRef<Step>(step);
-  const botModeRef = useRef(false);
   const c = copy[lang];
   const years = useMemo(() => Array.from({ length: 70 }, (_, i) => String(new Date().getFullYear() - i - 16)), []);
 
@@ -130,29 +128,8 @@ export default function Home() {
       const { data } = await supabase.from("conversations").select("*").or(`participant_a.eq.${sessionId},participant_b.eq.${sessionId}`).is("ended_at", null).order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (data) { window.clearInterval(poll); setConversation(data as Conversation); setStep("chat"); subscribeToChat(data.id, sessionId); }
     }, 2500);
-    window.setTimeout(() => { if (stepRef.current === "matching") void startBotFallback(sessionId); }, 5500);
   };
 
-  const startBotFallback = async (sessionId: string) => {
-    const { data: humanMatch } = await supabase.from("conversations").select("*").or(`participant_a.eq.${sessionId},participant_b.eq.${sessionId}`).is("ended_at", null).limit(1).maybeSingle();
-    if (humanMatch || stepRef.current !== "matching") return;
-    await supabase.from("match_queue").upsert({ session_id: sessionId, language: lang, country_code: session?.country_code || form.country });
-    botModeRef.current = true; setBotMode(true); setConversation({ id: `bot-${sessionId}`, participant_a: sessionId, participant_b: sessionId, created_at: new Date().toISOString(), ended_at: null }); setStep("chat");
-    const greetings = lang === "vi"
-      ? ["hi b", "chào nha", "hola"]
-      : ["hi", "hey there", "hola"];
-    const greeting = greetings[Math.floor(Math.random() * greetings.length)];
-    setMessages([{ id: `bot-intro-${sessionId}`, conversation_id: `bot-${sessionId}`, sender_session_id: `bot`, body: greeting, created_at: new Date().toISOString() }]);
-    subscribeToHumanUpgrade(sessionId);
-  };
-
-  const subscribeToHumanUpgrade = (sessionId: string) => {
-    const upgradePoll = window.setInterval(async () => {
-      if (!botModeRef.current || stepRef.current !== "chat") { window.clearInterval(upgradePoll); return; }
-      const { data } = await supabase.from("conversations").select("*").or(`participant_a.eq.${sessionId},participant_b.eq.${sessionId}`).is("ended_at", null).limit(1).maybeSingle();
-      if (data) { window.clearInterval(upgradePoll); botModeRef.current = false; setBotMode(false); setMessages([]); setConversation(data as Conversation); subscribeToChat(data.id, sessionId); }
-    }, 2500);
-  };
 
   const subscribeToChat = async (conversationId: string, sessionId: string) => {
     channelRef.current?.unsubscribe();
@@ -167,14 +144,6 @@ export default function Home() {
   const sendMessage = async (event: FormEvent) => {
     event.preventDefault(); if (!draft.trim() || !conversation || !session) return;
     const body = draft.trim(); setDraft("");
-    if (botMode) {
-      const userMessage: Message = { id: `user-${crypto.randomUUID()}`, conversation_id: conversation.id, sender_session_id: session.id, body, created_at: new Date().toISOString() };
-      setMessages((current) => [...current, userMessage]);
-      const history = [...messages, userMessage].map((message) => ({ role: message.sender_session_id === session.id ? "user" : "assistant", text: message.body }));
-      const { data, error: botError } = await supabase.functions.invoke("stranger-bot", { body: { language: lang, history } });
-      if (!botError && data?.text && stepRef.current === "chat") setMessages((current) => [...current, { id: `bot-${crypto.randomUUID()}`, conversation_id: conversation.id, sender_session_id: "bot", body: data.text, created_at: new Date().toISOString() }]);
-      return;
-    }
     const { data } = await supabase.from("messages").insert({ conversation_id: conversation.id, sender_session_id: session.id, body }).select().single();
     if (data) setMessages((current) => current.some((message) => message.id === data.id) ? current : [...current, data as Message]);
   };
@@ -185,8 +154,8 @@ export default function Home() {
     if (conversation) await supabase.rpc("leave_conversation", { p_conversation_id: conversation.id });
     if (session) await supabase.from("match_queue").delete().eq("session_id", session.id);
     channelRef.current?.unsubscribe(); setConversation(null); setMessages([]);
-    if (next && session) { botModeRef.current = false; setBotMode(false); setStep("matching"); await supabase.rpc("join_match", { p_language: lang, p_country_code: session.country_code }); subscribeToMatch(session.id); }
-    else { botModeRef.current = false; setBotMode(false); setSession(null); setStep("welcome"); }
+    if (next && session) { setStep("matching"); await supabase.rpc("join_match", { p_language: lang, p_country_code: session.country_code }); subscribeToMatch(session.id); }
+    else { setSession(null); setStep("welcome"); }
   };
 
   const submitStep = () => {
@@ -195,7 +164,7 @@ export default function Home() {
     else setStep(step === "gender" ? "name" : step === "name" ? "year" : "location");
   };
 
-  if (step === "chat") return <ChatView c={c} lang={lang} session={session} botMode={botMode} messages={messages} draft={draft} setDraft={setDraft} sendMessage={sendMessage} leaveChat={leaveChat} onLegal={setLegalPage} />;
+  if (step === "chat") return <ChatView c={c} lang={lang} session={session} messages={messages} draft={draft} setDraft={setDraft} sendMessage={sendMessage} leaveChat={leaveChat} onLegal={setLegalPage} />;
   if (step === "matching") return <main className="shell"><header className="topbar"><Logo compact /><LanguageToggle lang={lang} setLang={setLang} /></header><AdSlot label={lang === "vi" ? "Vị trí quảng cáo" : "Advertisement"} variant="top" /><section className="center-stage"><div className="matching-orb"><div className="orb-ring ring-one" /><div className="orb-ring ring-two" /><div className="orb-core"><Sparkles size={29} /></div></div><h1>{c.matching}</h1><p>{c.matchingHint}</p><div className="matching-dots"><i /><i /><i /></div><button className="text-button" onClick={() => leaveChat(false)}>{c.end}</button></section><LegalFooter lang={lang} onLegal={setLegalPage} />{legalPage && <LegalModal lang={lang} page={legalPage} onClose={() => setLegalPage(null)} />}</main>;
 
   return <main className="shell"><header className="topbar"><Logo compact /><LanguageToggle lang={lang} setLang={setLang} /></header><AdSlot label={lang === "vi" ? "Vị trí quảng cáo" : "Advertisement"} variant="top" /><section className="center-stage wizard-stage">
@@ -212,4 +181,4 @@ function LegalModal({ lang, page, onClose }: { lang: Language; page: Exclude<Leg
 
 function Choice({ icon, label, active, onClick }: { icon: string; label: string; active: boolean; onClick: () => void }) { return <button className={`choice-card ${active ? "active" : ""}`} onClick={onClick}><span className="choice-icon">{icon}</span><span>{label}</span>{active && <span className="choice-check">✓</span>}</button>; }
 function LanguageToggle({ lang, setLang }: { lang: Language; setLang: (language: Language) => void }) { return <div className="language-toggle"><button className={lang === "vi" ? "active" : ""} onClick={() => setLang("vi")}><Flag code="VN" /> VI</button><button className={lang === "en" ? "active" : ""} onClick={() => setLang("en")}><Flag code="US" /> EN</button></div>; }
-function ChatView({ c, lang, session, botMode, messages, draft, setDraft, sendMessage, leaveChat, onLegal }: { c: typeof copy.vi; lang: Language; session: SessionProfile | null; botMode: boolean; messages: Message[]; draft: string; setDraft: (value: string) => void; sendMessage: (event: FormEvent) => void; leaveChat: (next: boolean) => void; onLegal: (page: LegalPage) => void }) { return <main className="chat-shell"><header className="chat-topbar"><Logo compact /><div className="chat-status"><span className="status-dot" /> {c.matched}</div><LanguageToggle lang={lang} setLang={() => undefined} /></header><AdSlot label={lang === "vi" ? "Vị trí quảng cáo" : "Advertisement"} variant="chat" /><section className="chat-card"><div className="chat-card-head"><div className="stranger-avatar"><Heart size={19} /></div><div><strong>{botMode ? (lang === "vi" ? "Người lạ" : "Stranger") : c.anonymous}</strong><span>{lang === "vi" ? "Một người ở đâu đó trên thế giới" : "Someone, somewhere in the world"}</span></div><button className="close-button" onClick={() => leaveChat(false)} aria-label={c.end}><X size={18} /></button></div><div className="chat-retention-notice">{lang === "vi" ? "Tin nhắn sẽ bị xóa vĩnh viễn khi bạn thoát hoặc chọn người khác." : "Messages are permanently deleted when you leave or choose another stranger."}</div>{botMode && <div className="chat-retention-notice">{lang === "vi" ? "Minh bạch: bạn đang trò chuyện với một bot AI trong lúc chờ người thật; hệ thống sẽ ưu tiên chuyển bạn khi có người online." : "Transparency: you’re chatting with an AI bot while waiting; we’ll prioritize switching you to a real person when one is available."}</div>}<div className="messages"><div className="conversation-intro"><div className="intro-line" /><p>{c.empty}</p><div className="intro-line" /></div>{messages.map((message) => <div key={message.id} className={`message-row ${message.sender_session_id === session?.id ? "mine" : "theirs"}`}><div className="message-bubble">{message.body}</div><time>{new Date(message.created_at).toLocaleTimeString(lang === "vi" ? "vi-VN" : "en-US", { hour: "2-digit", minute: "2-digit" })}</time></div>)}</div><form className="composer" onSubmit={sendMessage}><input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={c.placeholder} maxLength={2000} /><button type="submit" aria-label={c.send}><Send size={18} /></button></form></section><div className="chat-actions"><button className="secondary-button" onClick={() => leaveChat(true)}>{c.next}<span>↗</span></button><button className="text-button" onClick={() => leaveChat(false)}>{c.end}</button></div><AdSlot label={lang === "vi" ? "Vị trí quảng cáo" : "Advertisement"} variant="bottom" /><LegalFooter lang={lang} onLegal={onLegal} /></main>; }
+function ChatView({ c, lang, session, messages, draft, setDraft, sendMessage, leaveChat, onLegal }: { c: typeof copy.vi; lang: Language; session: SessionProfile | null; messages: Message[]; draft: string; setDraft: (value: string) => void; sendMessage: (event: FormEvent) => void; leaveChat: (next: boolean) => void; onLegal: (page: LegalPage) => void }) { return <main className="chat-shell"><header className="chat-topbar"><Logo compact /><div className="chat-status"><span className="status-dot" /> {c.matched}</div><LanguageToggle lang={lang} setLang={() => undefined} /></header><AdSlot label={lang === "vi" ? "Vị trí quảng cáo" : "Advertisement"} variant="chat" /><section className="chat-card"><div className="chat-card-head"><div className="stranger-avatar"><Heart size={19} /></div><div><strong>{c.anonymous}</strong><span>{lang === "vi" ? "Một người ở đâu đó trên thế giới" : "Someone, somewhere in the world"}</span></div><button className="close-button" onClick={() => leaveChat(false)} aria-label={c.end}><X size={18} /></button></div><div className="chat-retention-notice">{lang === "vi" ? "Tin nhắn sẽ bị xóa vĩnh viễn khi bạn thoát hoặc chọn người khác." : "Messages are permanently deleted when you leave or choose another stranger."}</div><div className="messages"><div className="conversation-intro"><div className="intro-line" /><p>{c.empty}</p><div className="intro-line" /></div>{messages.map((message) => <div key={message.id} className={`message-row ${message.sender_session_id === session?.id ? "mine" : "theirs"}`}><div className="message-bubble">{message.body}</div><time>{new Date(message.created_at).toLocaleTimeString(lang === "vi" ? "vi-VN" : "en-US", { hour: "2-digit", minute: "2-digit" })}</time></div>)}</div><form className="composer" onSubmit={sendMessage}><input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={c.placeholder} maxLength={2000} /><button type="submit" aria-label={c.send}><Send size={18} /></button></form></section><div className="chat-actions"><button className="secondary-button" onClick={() => leaveChat(true)}>{c.next}<span>↗</span></button><button className="text-button" onClick={() => leaveChat(false)}>{c.end}</button></div><AdSlot label={lang === "vi" ? "Vị trí quảng cáo" : "Advertisement"} variant="bottom" /><LegalFooter lang={lang} onLegal={onLegal} /></main>; }
