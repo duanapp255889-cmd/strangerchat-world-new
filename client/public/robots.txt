@@ -1,4 +1,6 @@
+# StrangerChat.world crawler policy
 User-agent: *
 Allow: /
 
+# The site has no private crawlable areas.
 Sitemap: https://strangerchat.world/sitemap.xml
