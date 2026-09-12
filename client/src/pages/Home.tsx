@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Globe2, Heart, Loader2, MessageCircle, Send, Sparkles, Users, X } from "lucide-react";
-import { supabase, type Conversation, type Message, type SessionProfile } from "@/lib/supabase";
+import { ensureAnonymousAuth, supabase, type Conversation, type Message, type SessionProfile } from "@/lib/supabase";
 
 type Language = "vi" | "en";
 type Step = "welcome" | "gender" | "name" | "year" | "location" | "matching" | "chat";
@@ -100,21 +100,18 @@ export default function Home() {
 
   const createSessionAndMatch = async () => {
     setBusy(true); setError("");
-    const { data: profile, error: insertError } = await supabase.from("anonymous_sessions").insert({
-      display_name: form.name.trim(), gender: form.gender, birth_year: Number(form.year), country_code: form.country, city: form.city.trim(), language: lang,
+    let user;
+    try { user = await ensureAnonymousAuth(); } catch (authError) { setError(authError instanceof Error ? authError.message : "Could not start a secure session"); setBusy(false); return; }
+    const { data: profile, error: insertError } = await supabase.from("anonymous_sessions").upsert({
+      id: user.id, display_name: form.name.trim(), gender: form.gender, birth_year: Number(form.year), country_code: form.country, city: form.city.trim(), language: lang,
     }).select().single();
     if (insertError || !profile) { setError(insertError?.message || "Could not start a session"); setBusy(false); return; }
     setSession(profile as SessionProfile);
-    const { data: waiting } = await supabase.from("match_queue").select("session_id").eq("language", lang).neq("session_id", profile.id).order("joined_at", { ascending: true }).limit(1).maybeSingle();
-    if (waiting?.session_id) {
-      const { data: matched } = await supabase.from("conversations").insert({ participant_a: waiting.session_id, participant_b: profile.id }).select().single();
-      await supabase.from("match_queue").delete().in("session_id", [waiting.session_id, profile.id]);
-      if (matched) { setConversation(matched as Conversation); setStep("chat"); subscribeToChat(matched.id, profile.id); }
-    } else {
-      await supabase.from("match_queue").upsert({ session_id: profile.id, language: lang, country_code: form.country });
-      setStep("matching");
-      subscribeToMatch(profile.id);
-    }
+    const { data: matchRows, error: matchError } = await supabase.rpc("join_match", { p_language: lang, p_country_code: form.country });
+    const match = matchRows?.[0];
+    if (matchError) { setError(matchError.message); setBusy(false); return; }
+    if (match?.matched && match.conversation_id) { const { data: matched } = await supabase.from("conversations").select().eq("id", match.conversation_id).single(); if (matched) { setConversation(matched as Conversation); setStep("chat"); subscribeToChat(matched.id, profile.id); } }
+    else { setStep("matching"); subscribeToMatch(profile.id); }
     setBusy(false);
   };
 
@@ -151,9 +148,9 @@ export default function Home() {
   const leaveChat = async (next: boolean) => {
     // messages reference conversations with ON DELETE CASCADE, so deleting the
     // conversation permanently removes every message in that room.
-    if (conversation) await supabase.from("conversations").delete().eq("id", conversation.id);
+    if (conversation) await supabase.rpc("leave_conversation", { p_conversation_id: conversation.id });
     channelRef.current?.unsubscribe(); setConversation(null); setMessages([]);
-    if (next && session) { setStep("matching"); await supabase.from("match_queue").upsert({ session_id: session.id, language: lang, country_code: session.country_code }); subscribeToMatch(session.id); }
+    if (next && session) { setStep("matching"); await supabase.rpc("join_match", { p_language: lang, p_country_code: session.country_code }); subscribeToMatch(session.id); }
     else { setSession(null); setStep("welcome"); }
   };
 

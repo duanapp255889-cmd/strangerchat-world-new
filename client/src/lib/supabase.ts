@@ -5,7 +5,16 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "sb_publish
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   realtime: { params: { eventsPerSecond: 10 } },
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
 });
+
+export async function ensureAnonymousAuth() {
+  const { data: existing } = await supabase.auth.getSession();
+  if (existing.session?.user) return existing.session.user;
+  const { data, error } = await supabase.auth.signInAnonymously();
+  if (error || !data.user) throw new Error(error?.message || "Anonymous sign-in is unavailable");
+  return data.user;
+}
 
 export type SessionProfile = {
   id: string;
