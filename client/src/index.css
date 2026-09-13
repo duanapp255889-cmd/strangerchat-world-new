@@ -79,3 +79,27 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   .matching-shell .matching-stage { flex: 1; min-height: 0; justify-content: center; padding-top: 18px; padding-bottom: 22px; }
   .matching-shell .ad-slot { min-height: 84px; }
 }
+
+/* Welcome screen: fit the complete experience into one viewport */
+.welcome-shell { height: 100svh; min-height: 100svh; overflow: hidden; display: flex; flex-direction: column; }
+.welcome-shell .topbar { flex: 0 0 auto; }
+.welcome-shell > .ad-top { flex: 0 0 auto; }
+.welcome-shell .wizard-stage { flex: 1 1 auto; min-height: 0; padding: 12px 0 18px; justify-content: center; }
+.welcome-shell .wizard-stage > .brand { font-size: clamp(1.9rem, 4vw, 3rem); }
+.welcome-shell .wizard-stage .eyebrow { margin-top: 18px; }
+.welcome-shell .wizard-stage h1 { margin-top: 18px; }
+.welcome-shell .wizard-stage .primary-button { margin-top: 22px; }
+.welcome-shell .wizard-stage .tiny-note { margin-top: 16px; }
+.welcome-shell > .ad-bottom { flex: 0 0 auto; }
+.welcome-shell > .footer { flex: 0 0 auto; }
+@media (max-width: 620px) {
+  .welcome-shell .wizard-stage { padding: 4px 0 8px; }
+  .welcome-shell .wizard-stage > .brand { font-size: 1.55rem !important; }
+  .welcome-shell .wizard-stage .eyebrow { margin-top: 9px; }
+  .welcome-shell .wizard-stage h1 { margin: 10px 0 7px; font-size: clamp(1.72rem, 7.4vw, 2.35rem); line-height: 1.02; }
+  .welcome-shell .wizard-stage .welcome-copy { font-size: 12px !important; line-height: 1.35 !important; max-width: 290px; }
+  .welcome-shell .wizard-stage .primary-button { margin-top: 13px; padding: 11px 17px 11px 20px; }
+  .welcome-shell .wizard-stage .tiny-note { margin-top: 10px; }
+  .welcome-shell > .ad-bottom { margin-bottom: 0; }
+  .welcome-shell > .footer { padding-top: 3px; padding-bottom: 7px; }
+}
