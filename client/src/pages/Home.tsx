@@ -5,7 +5,7 @@ import { ensureAnonymousAuth, supabase, type Conversation, type Message, type Se
 type Language = "vi" | "en";
 type Step = "welcome" | "gender" | "name" | "year" | "location" | "matching" | "chat";
 type LegalPage = "privacy" | "terms" | null;
-type Form = { gender: string; name: string; year: string; country: string; city: string };
+type Form = { gender: string; preferredGender: string; name: string; year: string; country: string; city: string };
 
 const copy = {
   vi: {
@@ -13,6 +13,8 @@ const copy = {
     intro: "Một cuộc trò chuyện bất ngờ đang chờ bạn.",
     start: "Thử xem nào",
     gender: "Bạn là ai hôm nay?",
+    preferredGender: "Bạn muốn tìm kiếm?",
+    anyGender: "Bất kỳ giới tính nào",
     name: "Tên bạn là gì?",
     year: "Bạn sinh năm nào?",
     yearHint: "Để tụi mình tìm người phù hợp theo lứa tuổi của bạn",
@@ -36,6 +38,8 @@ const copy = {
     intro: "A surprising conversation is waiting for you.",
     start: "Try it out",
     gender: "Who are you today?",
+    preferredGender: "Who would you like to meet?",
+    anyGender: "Any gender",
     name: "What's your name?",
     year: "What year were you born?",
     yearHint: "So we can find someone in a similar age range",
@@ -76,7 +80,7 @@ function Logo({ compact = false }: { compact?: boolean }) {
 export default function Home() {
   const [lang, setLang] = useState<Language>(() => (navigator.language.toLowerCase().startsWith("vi") ? "vi" : "en"));
   const [step, setStep] = useState<Step>("welcome");
-  const [form, setForm] = useState<Form>({ gender: "", name: "", year: "", country: "US", city: "" });
+  const [form, setForm] = useState<Form>({ gender: "", preferredGender: "any", name: "", year: "", country: "US", city: "" });
   const [session, setSession] = useState<SessionProfile | null>(null);
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -110,15 +114,15 @@ export default function Home() {
     }).select().single();
     if (insertError || !profile) { setError(insertError?.message || "Could not start a session"); setBusy(false); return; }
     setSession(profile as SessionProfile);
-    const { data: matchRows, error: matchError } = await supabase.rpc("join_match", { p_language: lang, p_country_code: form.country });
+    const { data: matchRows, error: matchError } = await supabase.rpc("join_match", { p_language: lang, p_country_code: form.country, p_gender_preference: form.preferredGender });
     const match = matchRows?.[0];
     if (matchError) { setError(matchError.message); setBusy(false); return; }
     if (match?.matched && match.conversation_id) { const { data: matched } = await supabase.from("conversations").select().eq("id", match.conversation_id).single(); if (matched) { setConversation(matched as Conversation); setStep("chat"); subscribeToChat(matched.id, profile.id); } }
-    else { setStep("matching"); subscribeToMatch(profile.id, form.country); }
+    else { setStep("matching"); subscribeToMatch(profile.id, form.country, form.preferredGender); }
     setBusy(false);
   };
 
-  const subscribeToMatch = (sessionId: string, selectedCountry = "*") => {
+  const subscribeToMatch = (sessionId: string, selectedCountry = "*", preferredGender = "any") => {
     channelRef.current?.unsubscribe();
     const channel = supabase.channel(`match-${sessionId}`).on("postgres_changes", { event: "INSERT", schema: "public", table: "conversations", filter: `participant_a=eq.${sessionId}` }, (payload) => {
       const match = payload.new as Conversation; setConversation(match); setStep("chat"); subscribeToChat(match.id, sessionId);
@@ -134,7 +138,7 @@ export default function Home() {
         if (stepRef.current !== "matching") return;
         const { data: existingMatch } = await supabase.from("conversations").select("id").or(`participant_a.eq.${sessionId},participant_b.eq.${sessionId}`).is("ended_at", null).limit(1).maybeSingle();
         if (existingMatch || stepRef.current !== "matching") return;
-        const { data: fallbackRows } = await supabase.rpc("join_match", { p_language: lang, p_country_code: "*" });
+        const { data: fallbackRows } = await supabase.rpc("join_match", { p_language: lang, p_country_code: "*", p_gender_preference: preferredGender });
         const fallbackMatch = fallbackRows?.[0];
         if (fallbackMatch?.matched && fallbackMatch.conversation_id && stepRef.current === "matching") {
           const { data: matched } = await supabase.from("conversations").select().eq("id", fallbackMatch.conversation_id).single();
@@ -182,7 +186,7 @@ export default function Home() {
     if (conversation) await supabase.rpc("leave_conversation", { p_conversation_id: conversation.id });
     if (session) await supabase.from("match_queue").delete().eq("session_id", session.id);
     channelRef.current?.unsubscribe(); setConversation(null); setMessages([]);
-    if (next && session) { setStep("matching"); await supabase.rpc("join_match", { p_language: lang, p_country_code: session.country_code }); subscribeToMatch(session.id, session.country_code); }
+    if (next && session) { setStep("matching"); await supabase.rpc("join_match", { p_language: lang, p_country_code: session.country_code, p_gender_preference: form.preferredGender }); subscribeToMatch(session.id, session.country_code, form.preferredGender); }
     else { setSession(null); setStep("welcome"); }
   };
 
@@ -197,7 +201,7 @@ export default function Home() {
 
   return <main className={`shell ${step === "welcome" ? "welcome-shell" : ""}`}><header className="topbar"><Logo compact /><LanguageToggle lang={lang} setLang={setLang} /></header><AdSlot label={lang === "vi" ? "Vị trí quảng cáo" : "Advertisement"} variant="top" /><section className="center-stage wizard-stage">
     {step === "welcome" && <><Logo /><div className="eyebrow"><Globe2 size={14} /> One world, many stories</div><h1>{c.intro}</h1><p className="welcome-copy">{lang === "vi" ? "Gặp một người bạn chưa từng biết, ở bất cứ đâu trên thế giới." : "Meet someone you've never known, anywhere in the world."}</p><button className="primary-button" onClick={() => setStep("gender")}>{c.start}<span>→</span></button><div className="tiny-note"><Users size={14} /> {lang === "vi" ? "Không cần hồ sơ công khai" : "No public profile needed"}</div></>}
-    {step !== "welcome" && <><div className="step-count">0{step === "gender" ? 1 : step === "name" ? 2 : step === "year" ? 3 : 4} <span>/ 04</span></div>{step === "gender" && <><h1>{c.gender}</h1><div className="choice-grid"><Choice icon="♀" label={lang === "vi" ? "Nữ" : "Woman"} active={form.gender === "female"} onClick={() => updateForm("gender", "female")} /><Choice icon="♂" label={lang === "vi" ? "Nam" : "Man"} active={form.gender === "male"} onClick={() => updateForm("gender", "male")} /><Choice icon="✦" label={lang === "vi" ? "Khác" : "Other"} active={form.gender === "other"} onClick={() => updateForm("gender", "other")} /></div></>}{step === "name" && <><h1>{c.name}</h1><input autoFocus className="large-input" value={form.name} onChange={(e) => updateForm("name", e.target.value)} placeholder={c.noName} maxLength={40} /></>}{step === "year" && <><h1>{c.year}</h1><p className="hint">{c.yearHint}</p><select className="large-input select-input" value={form.year} onChange={(e) => updateForm("year", e.target.value)}><option value="">{lang === "vi" ? "Chọn năm sinh" : "Select birth year"}</option>{years.map((year) => <option key={year} value={year}>{year}</option>)}</select></>}{step === "location" && <><h1>{c.location}</h1><p className="hint">{c.locationHint}</p><div className="location-fields"><select className="large-input select-input" value={form.country} onChange={(e) => updateForm("country", e.target.value)}>{countries.map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select><input autoFocus className="large-input" value={form.city} onChange={(e) => updateForm("city", e.target.value)} placeholder={lang === "vi" ? "Thành phố" : "City"} /></div></>}{error && <p className="error-text">{error}</p>}<div className="wizard-actions"><button className="text-button" onClick={() => setStep(step === "gender" ? "welcome" : step === "name" ? "gender" : step === "year" ? "name" : "year")}>{c.back}</button><button className="primary-button small" disabled={!canContinue || busy} onClick={submitStep}>{busy ? <Loader2 className="spin" size={17} /> : c.continue}<span>→</span></button></div></>}
+    {step !== "welcome" && <><div className="step-count">0{step === "gender" ? 1 : step === "name" ? 2 : step === "year" ? 3 : 4} <span>/ 04</span></div>{step === "gender" && <><h1>{c.gender}</h1><div className="choice-grid"><Choice icon="♀" label={lang === "vi" ? "Nữ" : "Woman"} active={form.gender === "female"} onClick={() => updateForm("gender", "female")} /><Choice icon="♂" label={lang === "vi" ? "Nam" : "Man"} active={form.gender === "male"} onClick={() => updateForm("gender", "male")} /><Choice icon="✦" label={lang === "vi" ? "Khác" : "Other"} active={form.gender === "other"} onClick={() => updateForm("gender", "other")} /></div><h2 className="preference-heading">{c.preferredGender}</h2><div className="choice-grid preference-grid"><Choice icon="✦" label={c.anyGender} active={form.preferredGender === "any"} onClick={() => updateForm("preferredGender", "any")} /><Choice icon="♀" label={lang === "vi" ? "Nữ" : "Woman"} active={form.preferredGender === "female"} onClick={() => updateForm("preferredGender", "female")} /><Choice icon="♂" label={lang === "vi" ? "Nam" : "Man"} active={form.preferredGender === "male"} onClick={() => updateForm("preferredGender", "male")} /><Choice icon="✦" label={lang === "vi" ? "Khác" : "Other"} active={form.preferredGender === "other"} onClick={() => updateForm("preferredGender", "other")} /></div></>}{step === "name" && <><h1>{c.name}</h1><input autoFocus className="large-input" value={form.name} onChange={(e) => updateForm("name", e.target.value)} placeholder={c.noName} maxLength={40} /></>}{step === "year" && <><h1>{c.year}</h1><p className="hint">{c.yearHint}</p><select className="large-input select-input" value={form.year} onChange={(e) => updateForm("year", e.target.value)}><option value="">{lang === "vi" ? "Chọn năm sinh" : "Select birth year"}</option>{years.map((year) => <option key={year} value={year}>{year}</option>)}</select></>}{step === "location" && <><h1>{c.location}</h1><p className="hint">{c.locationHint}</p><div className="location-fields"><select className="large-input select-input" value={form.country} onChange={(e) => updateForm("country", e.target.value)}>{countries.map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select><input autoFocus className="large-input" value={form.city} onChange={(e) => updateForm("city", e.target.value)} placeholder={lang === "vi" ? "Thành phố" : "City"} /></div></>}{error && <p className="error-text">{error}</p>}<div className="wizard-actions"><button className="text-button" onClick={() => setStep(step === "gender" ? "welcome" : step === "name" ? "gender" : step === "year" ? "name" : "year")}>{c.back}</button><button className="primary-button small" disabled={!canContinue || busy} onClick={submitStep}>{busy ? <Loader2 className="spin" size={17} /> : c.continue}<span>→</span></button></div></>}
   </section><AdSlot label={lang === "vi" ? "Vị trí quảng cáo" : "Advertisement"} variant="bottom" /><LegalFooter lang={lang} onLegal={setLegalPage} />{legalPage && <LegalModal lang={lang} page={legalPage} onClose={() => setLegalPage(null)} />}</main>;
 }
 

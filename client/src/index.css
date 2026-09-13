@@ -103,3 +103,13 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   .welcome-shell > .ad-bottom { margin-bottom: 0; }
   .welcome-shell > .footer { padding-top: 3px; padding-bottom: 7px; }
 }
+
+.preference-heading { align-self: flex-start; width: min(440px, 100%); margin: 24px auto 0; color: #766b7a; font-size: 13px; font-weight: 700; text-align: left; }
+.preference-grid { grid-template-columns: repeat(4, 1fr); margin-top: 10px; }
+.preference-grid .choice-card { padding: 14px 8px; font-size: 12px; }
+@media (max-width: 620px) {
+  .preference-heading { margin-top: 16px; font-size: 12px; }
+  .preference-grid { gap: 7px; }
+  .preference-grid .choice-card { padding: 11px 5px; font-size: 10px; }
+  .preference-grid .choice-icon { font-size: 19px; }
+}
