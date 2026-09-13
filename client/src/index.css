@@ -70,3 +70,12 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   .end-button { margin-top: 16px; padding: 9px 16px; }
   .chat-image { max-width: 62vw; max-height: 220px; }
 }
+
+/* Full-screen matching layout and larger ad placements */
+.matching-shell { display: flex; flex-direction: column; min-height: 100vh; }
+.matching-shell .matching-stage { flex: 1; min-height: 0; }
+.matching-shell .ad-slot { min-height: 124px; }
+@media (max-width: 620px) {
+  .matching-shell .matching-stage { flex: 1; min-height: 0; justify-content: center; padding-top: 18px; padding-bottom: 22px; }
+  .matching-shell .ad-slot { min-height: 84px; }
+}
