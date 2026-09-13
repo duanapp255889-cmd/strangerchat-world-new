@@ -114,11 +114,11 @@ export default function Home() {
     const match = matchRows?.[0];
     if (matchError) { setError(matchError.message); setBusy(false); return; }
     if (match?.matched && match.conversation_id) { const { data: matched } = await supabase.from("conversations").select().eq("id", match.conversation_id).single(); if (matched) { setConversation(matched as Conversation); setStep("chat"); subscribeToChat(matched.id, profile.id); } }
-    else { setStep("matching"); subscribeToMatch(profile.id); }
+    else { setStep("matching"); subscribeToMatch(profile.id, form.country); }
     setBusy(false);
   };
 
-  const subscribeToMatch = (sessionId: string) => {
+  const subscribeToMatch = (sessionId: string, selectedCountry = "*") => {
     channelRef.current?.unsubscribe();
     const channel = supabase.channel(`match-${sessionId}`).on("postgres_changes", { event: "INSERT", schema: "public", table: "conversations", filter: `participant_a=eq.${sessionId}` }, (payload) => {
       const match = payload.new as Conversation; setConversation(match); setStep("chat"); subscribeToChat(match.id, sessionId);
@@ -129,6 +129,19 @@ export default function Home() {
       const { data } = await supabase.from("conversations").select("*").or(`participant_a.eq.${sessionId},participant_b.eq.${sessionId}`).is("ended_at", null).order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (data) { window.clearInterval(poll); setConversation(data as Conversation); setStep("chat"); subscribeToChat(data.id, sessionId); }
     }, 2500);
+    if (selectedCountry !== "*") {
+      window.setTimeout(async () => {
+        if (stepRef.current !== "matching") return;
+        const { data: existingMatch } = await supabase.from("conversations").select("id").or(`participant_a.eq.${sessionId},participant_b.eq.${sessionId}`).is("ended_at", null).limit(1).maybeSingle();
+        if (existingMatch || stepRef.current !== "matching") return;
+        const { data: fallbackRows } = await supabase.rpc("join_match", { p_language: lang, p_country_code: "*" });
+        const fallbackMatch = fallbackRows?.[0];
+        if (fallbackMatch?.matched && fallbackMatch.conversation_id && stepRef.current === "matching") {
+          const { data: matched } = await supabase.from("conversations").select().eq("id", fallbackMatch.conversation_id).single();
+          if (matched) { setConversation(matched as Conversation); setStep("chat"); subscribeToChat(matched.id, sessionId); }
+        }
+      }, 15000);
+    }
   };
 
 
@@ -169,7 +182,7 @@ export default function Home() {
     if (conversation) await supabase.rpc("leave_conversation", { p_conversation_id: conversation.id });
     if (session) await supabase.from("match_queue").delete().eq("session_id", session.id);
     channelRef.current?.unsubscribe(); setConversation(null); setMessages([]);
-    if (next && session) { setStep("matching"); await supabase.rpc("join_match", { p_language: lang, p_country_code: session.country_code }); subscribeToMatch(session.id); }
+    if (next && session) { setStep("matching"); await supabase.rpc("join_match", { p_language: lang, p_country_code: session.country_code }); subscribeToMatch(session.id, session.country_code); }
     else { setSession(null); setStep("welcome"); }
   };
 
