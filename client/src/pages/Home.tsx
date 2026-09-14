@@ -15,7 +15,7 @@ const copy = {
     gender: "Bạn là ai hôm nay?",
     preferredGender: "Bạn muốn tìm kiếm?",
     anyGender: "Bất kỳ giới tính nào",
-    name: "Tên bạn là gì?",
+    name: "Thông tin của bạn",
     year: "Bạn sinh năm nào?",
     yearHint: "Để tụi mình tìm người phù hợp theo lứa tuổi của bạn",
     location: "Bạn đang ở đâu?",
@@ -40,7 +40,7 @@ const copy = {
     gender: "Who are you today?",
     preferredGender: "Who would you like to meet?",
     anyGender: "Any gender",
-    name: "What's your name?",
+    name: "About you",
     year: "What year were you born?",
     yearHint: "So we can find someone in a similar age range",
     location: "Where are you?",
@@ -103,7 +103,7 @@ export default function Home() {
   useEffect(() => () => { channelRef.current?.unsubscribe(); }, []);
 
   const updateForm = (key: keyof Form, value: string) => setForm((current) => ({ ...current, [key]: value }));
-  const canContinue = step === "gender" ? !!form.gender : step === "name" ? form.name.trim().length > 0 : step === "year" ? !!form.year : !!form.city.trim();
+  const canContinue = step === "gender" ? !!form.gender : step === "name" ? form.name.trim().length > 0 && !!form.year && !!form.city.trim() : !!form.city.trim();
 
   const createSessionAndMatch = async () => {
     setBusy(true); setError("");
@@ -192,8 +192,8 @@ export default function Home() {
 
   const submitStep = () => {
     if (!canContinue) return;
-    if (step === "location") void createSessionAndMatch();
-    else setStep(step === "gender" ? "name" : step === "name" ? "year" : "location");
+    if (step === "name") void createSessionAndMatch();
+    else setStep("name");
   };
 
   if (step === "chat") return <ChatView c={c} lang={lang} session={session} messages={messages} sendImage={sendImage} imageBusy={imageBusy} draft={draft} setDraft={setDraft} sendMessage={sendMessage} leaveChat={leaveChat} onLegal={setLegalPage} />;
@@ -201,7 +201,7 @@ export default function Home() {
 
   return <main className={`shell ${step === "welcome" ? "welcome-shell" : ""}`}><header className="topbar"><Logo compact /><LanguageToggle lang={lang} setLang={setLang} /></header><AdSlot label={lang === "vi" ? "Vị trí quảng cáo" : "Advertisement"} variant="top" /><section className="center-stage wizard-stage">
     {step === "welcome" && <><Logo /><div className="eyebrow"><Globe2 size={14} /> One world, many stories</div><h1>{c.intro}</h1><p className="welcome-copy">{lang === "vi" ? "Gặp một người bạn chưa từng biết, ở bất cứ đâu trên thế giới." : "Meet someone you've never known, anywhere in the world."}</p><button className="primary-button" onClick={() => setStep("gender")}>{c.start}<span>→</span></button><div className="tiny-note"><Users size={14} /> {lang === "vi" ? "Không cần hồ sơ công khai" : "No public profile needed"}</div></>}
-    {step !== "welcome" && <><div className="step-count">0{step === "gender" ? 1 : step === "name" ? 2 : step === "year" ? 3 : 4} <span>/ 04</span></div>{step === "gender" && <><h1>{c.gender}</h1><div className="choice-grid"><Choice icon="♀" label={lang === "vi" ? "Nữ" : "Woman"} active={form.gender === "female"} onClick={() => updateForm("gender", "female")} /><Choice icon="♂" label={lang === "vi" ? "Nam" : "Man"} active={form.gender === "male"} onClick={() => updateForm("gender", "male")} /><Choice icon="✦" label={lang === "vi" ? "Khác" : "Other"} active={form.gender === "other"} onClick={() => updateForm("gender", "other")} /></div><h2 className="preference-heading">{c.preferredGender}</h2><div className="choice-grid preference-grid"><Choice icon="✦" label={c.anyGender} active={form.preferredGender === "any"} onClick={() => updateForm("preferredGender", "any")} /><Choice icon="♀" label={lang === "vi" ? "Nữ" : "Woman"} active={form.preferredGender === "female"} onClick={() => updateForm("preferredGender", "female")} /><Choice icon="♂" label={lang === "vi" ? "Nam" : "Man"} active={form.preferredGender === "male"} onClick={() => updateForm("preferredGender", "male")} /><Choice icon="✦" label={lang === "vi" ? "Khác" : "Other"} active={form.preferredGender === "other"} onClick={() => updateForm("preferredGender", "other")} /></div></>}{step === "name" && <><h1>{c.name}</h1><input autoFocus className="large-input" value={form.name} onChange={(e) => updateForm("name", e.target.value)} placeholder={c.noName} maxLength={40} /></>}{step === "year" && <><h1>{c.year}</h1><p className="hint">{c.yearHint}</p><select className="large-input select-input" value={form.year} onChange={(e) => updateForm("year", e.target.value)}><option value="">{lang === "vi" ? "Chọn năm sinh" : "Select birth year"}</option>{years.map((year) => <option key={year} value={year}>{year}</option>)}</select></>}{step === "location" && <><h1>{c.location}</h1><p className="hint">{c.locationHint}</p><div className="location-fields"><select className="large-input select-input" value={form.country} onChange={(e) => updateForm("country", e.target.value)}>{countries.map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select><input autoFocus className="large-input" value={form.city} onChange={(e) => updateForm("city", e.target.value)} placeholder={lang === "vi" ? "Thành phố" : "City"} /></div></>}{error && <p className="error-text">{error}</p>}<div className="wizard-actions"><button className="text-button" onClick={() => setStep(step === "gender" ? "welcome" : step === "name" ? "gender" : step === "year" ? "name" : "year")}>{c.back}</button><button className="primary-button small" disabled={!canContinue || busy} onClick={submitStep}>{busy ? <Loader2 className="spin" size={17} /> : c.continue}<span>→</span></button></div></>}
+    {step !== "welcome" && <><div className="step-count">0{step === "gender" ? 1 : 2} <span>/ 02</span></div>{step === "gender" && <><h1>{c.gender}</h1><div className="choice-grid"><Choice icon="♀" label={lang === "vi" ? "Nữ" : "Woman"} active={form.gender === "female"} onClick={() => updateForm("gender", "female")} /><Choice icon="♂" label={lang === "vi" ? "Nam" : "Man"} active={form.gender === "male"} onClick={() => updateForm("gender", "male")} /><Choice icon="✦" label={lang === "vi" ? "Khác" : "Other"} active={form.gender === "other"} onClick={() => updateForm("gender", "other")} /></div><h2 className="preference-heading">{c.preferredGender}</h2><div className="choice-grid preference-grid"><Choice icon="✦" label={c.anyGender} active={form.preferredGender === "any"} onClick={() => updateForm("preferredGender", "any")} /><Choice icon="♀" label={lang === "vi" ? "Nữ" : "Woman"} active={form.preferredGender === "female"} onClick={() => updateForm("preferredGender", "female")} /><Choice icon="♂" label={lang === "vi" ? "Nam" : "Man"} active={form.preferredGender === "male"} onClick={() => updateForm("preferredGender", "male")} /><Choice icon="✦" label={lang === "vi" ? "Khác" : "Other"} active={form.preferredGender === "other"} onClick={() => updateForm("preferredGender", "other")} /></div></>}{step === "name" && <><h1>{c.name}</h1><div className="profile-form"><input autoFocus className="large-input" value={form.name} onChange={(e) => updateForm("name", e.target.value)} placeholder={c.noName} maxLength={40} /><select className="large-input select-input" value={form.year} onChange={(e) => updateForm("year", e.target.value)}><option value="">{lang === "vi" ? "Chọn năm sinh" : "Select birth year"}</option>{years.map((year) => <option key={year} value={year}>{year}</option>)}</select><select className="large-input select-input" value={form.country} onChange={(e) => updateForm("country", e.target.value)}>{countries.map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select><input className="large-input" value={form.city} onChange={(e) => updateForm("city", e.target.value)} placeholder={lang === "vi" ? "Thành phố" : "City"} /></div><p className="profile-hint">{lang === "vi" ? "Điền nhanh vài thông tin để bắt đầu ghép đôi." : "Add a few details to start matching."}</p></>}{error && <p className="error-text">{error}</p>}<div className="wizard-actions"><button className="text-button" onClick={() => setStep(step === "gender" ? "welcome" : "gender")}>{c.back}</button><button className="primary-button small" disabled={!canContinue || busy} onClick={submitStep}>{busy ? <Loader2 className="spin" size={17} /> : c.continue}<span>→</span></button></div></>}
   </section><AdSlot label={lang === "vi" ? "Vị trí quảng cáo" : "Advertisement"} variant="bottom" /><LegalFooter lang={lang} onLegal={setLegalPage} />{legalPage && <LegalModal lang={lang} page={legalPage} onClose={() => setLegalPage(null)} />}</main>;
 }
 
