@@ -9,7 +9,7 @@ type Form = { gender: string; preferredGender: string; name: string; year: strin
 
 const copy = {
   vi: {
-    hello: "Random Stranger Chat",
+    hello: "Stranger Chat",
     intro: "Một cuộc trò chuyện bất ngờ đang chờ bạn.",
     start: "Thử xem nào",
     gender: "Bạn là ai hôm nay?",
@@ -34,7 +34,7 @@ const copy = {
     noName: "Tên của bạn",
   },
   en: {
-    hello: "Random Stranger Chat",
+    hello: "Stranger Chat",
     intro: "A surprising conversation is waiting for you.",
     start: "Try it out",
     gender: "Who are you today?",
@@ -96,7 +96,7 @@ export default function Home() {
 
   useEffect(() => {
     document.documentElement.lang = lang;
-    document.title = lang === "vi" ? "Random Stranger Chat — Trò chuyện với người lạ" : "Random Stranger Chat — Talk to Strangers Online";
+    document.title = lang === "vi" ? "Stranger Chat — Trò chuyện với người lạ" : "Stranger Chat — Talk to Strangers Online";
   }, [lang]);
   useEffect(() => { stepRef.current = step; }, [step]);
 
@@ -207,9 +207,9 @@ export default function Home() {
 
 function AdSlot({ label, variant }: { label: string; variant: "top" | "bottom" | "chat" }) { return <div className={`ad-slot ad-${variant}`} aria-label={label}><a className="deal24h-ad" href="https://deal24h.net/" target="_blank" rel="sponsored noopener noreferrer" aria-label="Visit Deal24h.net for coupons, promo codes and deals"><img src="https://deal24h.net/assets/ads/deal24h-banner-580.webp" srcSet="https://deal24h.net/assets/ads/deal24h-banner-580.webp 580w, https://deal24h.net/assets/ads/deal24h-banner-1161.webp 1161w" sizes="(max-width: 640px) 100vw, 580px" width="580" height="678" alt="DEAL 24H — Big Brands, Real Discounts, All in One Place" loading="lazy" decoding="async" /></a></div>; }
 
-function LegalFooter({ lang, onLegal }: { lang: Language; onLegal: (page: LegalPage) => void }) { return <footer className="footer"><span>© 2026 Random Stranger Chat</span><span>{lang === "vi" ? "Trò chuyện tử tế · Tôn trọng sự riêng tư" : "Be kind · Respect privacy"}</span><nav className="legal-links"><button onClick={() => onLegal("privacy")}>{lang === "vi" ? "Chính sách bảo mật" : "Privacy Policy"}</button><button onClick={() => onLegal("terms")}>{lang === "vi" ? "Điều khoản sử dụng" : "Terms of Use"}</button></nav></footer>; }
+function LegalFooter({ lang, onLegal }: { lang: Language; onLegal: (page: LegalPage) => void }) { return <footer className="footer"><span>© 2026 Stranger Chat</span><span>{lang === "vi" ? "Trò chuyện tử tế · Tôn trọng sự riêng tư" : "Be kind · Respect privacy"}</span><nav className="legal-links"><button onClick={() => onLegal("privacy")}>{lang === "vi" ? "Chính sách bảo mật" : "Privacy Policy"}</button><button onClick={() => onLegal("terms")}>{lang === "vi" ? "Điều khoản sử dụng" : "Terms of Use"}</button></nav></footer>; }
 
-function LegalModal({ lang, page, onClose }: { lang: Language; page: Exclude<LegalPage, null>; onClose: () => void }) { const privacy = page === "privacy"; return <div className="legal-backdrop" role="dialog" aria-modal="true" aria-label={privacy ? "Privacy Policy" : "Terms of Use"}><article className="legal-modal"><button className="legal-close" onClick={onClose} aria-label="Close">×</button><div className="eyebrow">Random Stranger Chat</div><h2>{privacy ? (lang === "vi" ? "Chính sách bảo mật" : "Privacy Policy") : (lang === "vi" ? "Điều khoản sử dụng" : "Terms of Use")}</h2>{privacy ? <><p>{lang === "vi" ? "Chúng tôi chỉ sử dụng thông tin cần thiết để ghép đôi và duy trì cuộc trò chuyện. Không chia sẻ thông tin cá nhân của bạn với người khác trong hồ sơ công khai." : "We use only the information needed to match you and maintain a conversation. Your personal details are not shown in a public profile."}</p><p>{lang === "vi" ? "Tin nhắn và dữ liệu phiên có thể được lưu tạm thời để vận hành dịch vụ, chống spam và xử lý báo cáo. Bạn không nên chia sẻ số điện thoại, mật khẩu hoặc thông tin nhạy cảm." : "Messages and session data may be stored temporarily to operate the service, prevent spam, and handle reports. Do not share phone numbers, passwords, or sensitive information."}</p></> : <><p>{lang === "vi" ? "Bạn đồng ý sử dụng dịch vụ một cách văn minh, không quấy rối, lừa đảo, đe dọa hoặc chia sẻ nội dung bất hợp pháp." : "You agree to use the service respectfully and not to harass, scam, threaten, or share illegal content."}</p><p>{lang === "vi" ? "Dịch vụ dành cho người dùng đủ độ tuổi theo pháp luật nơi bạn sống. Hãy kết thúc và báo cáo cuộc trò chuyện nếu cảm thấy không an toàn." : "The service is for users who meet the minimum age required where they live. End and report a conversation if you feel unsafe."}</p></>}<button className="primary-button small legal-ok" onClick={onClose}>{lang === "vi" ? "Đã hiểu" : "Got it"}</button></article></div>; }
+function LegalModal({ lang, page, onClose }: { lang: Language; page: Exclude<LegalPage, null>; onClose: () => void }) { const privacy = page === "privacy"; return <div className="legal-backdrop" role="dialog" aria-modal="true" aria-label={privacy ? "Privacy Policy" : "Terms of Use"}><article className="legal-modal"><button className="legal-close" onClick={onClose} aria-label="Close">×</button><div className="eyebrow">Stranger Chat</div><h2>{privacy ? (lang === "vi" ? "Chính sách bảo mật" : "Privacy Policy") : (lang === "vi" ? "Điều khoản sử dụng" : "Terms of Use")}</h2>{privacy ? <><p>{lang === "vi" ? "Chúng tôi chỉ sử dụng thông tin cần thiết để ghép đôi và duy trì cuộc trò chuyện. Không chia sẻ thông tin cá nhân của bạn với người khác trong hồ sơ công khai." : "We use only the information needed to match you and maintain a conversation. Your personal details are not shown in a public profile."}</p><p>{lang === "vi" ? "Tin nhắn và dữ liệu phiên có thể được lưu tạm thời để vận hành dịch vụ, chống spam và xử lý báo cáo. Bạn không nên chia sẻ số điện thoại, mật khẩu hoặc thông tin nhạy cảm." : "Messages and session data may be stored temporarily to operate the service, prevent spam, and handle reports. Do not share phone numbers, passwords, or sensitive information."}</p></> : <><p>{lang === "vi" ? "Bạn đồng ý sử dụng dịch vụ một cách văn minh, không quấy rối, lừa đảo, đe dọa hoặc chia sẻ nội dung bất hợp pháp." : "You agree to use the service respectfully and not to harass, scam, threaten, or share illegal content."}</p><p>{lang === "vi" ? "Dịch vụ dành cho người dùng đủ độ tuổi theo pháp luật nơi bạn sống. Hãy kết thúc và báo cáo cuộc trò chuyện nếu cảm thấy không an toàn." : "The service is for users who meet the minimum age required where they live. End and report a conversation if you feel unsafe."}</p></>}<button className="primary-button small legal-ok" onClick={onClose}>{lang === "vi" ? "Đã hiểu" : "Got it"}</button></article></div>; }
 
 function Choice({ icon, label, active, onClick }: { icon: string; label: string; active: boolean; onClick: () => void }) { return <button className={`choice-card ${active ? "active" : ""}`} onClick={onClick}><span className="choice-icon">{icon}</span><span>{label}</span>{active && <span className="choice-check">✓</span>}</button>; }
 function LanguageToggle({ lang, setLang }: { lang: Language; setLang: (language: Language) => void }) { return <div className="language-toggle"><button className={lang === "vi" ? "active" : ""} onClick={() => setLang("vi")}><Flag code="VN" /> VI</button><button className={lang === "en" ? "active" : ""} onClick={() => setLang("en")}><Flag code="US" /> EN</button></div>; }
