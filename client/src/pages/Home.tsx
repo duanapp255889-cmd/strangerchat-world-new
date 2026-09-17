@@ -1,10 +1,11 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { Globe2, Heart, ImagePlus, Loader2, MessageCircle, Send, Sparkles, Users, X } from "lucide-react";
+import { Bell, Globe2, Heart, ImagePlus, Loader2, MessageCircle, Send, Sparkles, Users, X } from "lucide-react";
 import { ensureAnonymousAuth, supabase, type Conversation, type Message, type SessionProfile } from "@/lib/supabase";
 
 type Language = "vi" | "en";
-type Step = "welcome" | "gender" | "name" | "year" | "location" | "matching" | "chat";
+type Step = "welcome" | "gender" | "name" | "year" | "location" | "matching" | "chat" | "closed";
 type LegalPage = "privacy" | "terms" | null;
+type ReminderChannel = "email" | "browser" | "telegram";
 type Form = { gender: string; preferredGender: string; name: string; year: string; country: string; city: string };
 
 const copy = {
@@ -32,6 +33,18 @@ const copy = {
     empty: "Hãy bắt đầu bằng một lời chào.",
     anonymous: "Ẩn danh",
     noName: "Tên của bạn",
+    closedTitle: "Phòng chat đang đóng",
+    closedMessage: "Phòng chat mở cửa hàng ngày từ 20:00 - 23:00 (GMT+7).",
+    closedHint: "Hãy quay lại sau khi đồng hồ về 0 để tham gia chat cùng hàng ngàn người chơi khác!",
+    remind: "Nhắc tôi khi mở cửa",
+    reminderTitle: "Nhận nhắc khi phòng mở cửa",
+    email: "Đăng ký Email",
+    emailPlaceholder: "Email của bạn",
+    browser: "Thông báo trình duyệt",
+    telegram: "Theo dõi qua Telegram",
+    save: "Lưu lựa chọn",
+    close: "Đóng",
+    reminderSaved: "Đã lưu lựa chọn nhắc mở cửa.",
   },
   en: {
     hello: "Stranger Chat",
@@ -57,6 +70,18 @@ const copy = {
     empty: "Start with a hello.",
     anonymous: "Anonymous",
     noName: "Your name",
+    closedTitle: "Chat room is closed",
+    closedMessage: "The chat room is open daily from 20:00 - 23:00 (GMT+7).",
+    closedHint: "Come back when the countdown reaches zero to chat with thousands of other players!",
+    remind: "Remind me when it opens",
+    reminderTitle: "Get a reminder when chat opens",
+    email: "Email signup",
+    emailPlaceholder: "Your email",
+    browser: "Browser notifications",
+    telegram: "Follow on Telegram",
+    save: "Save reminder",
+    close: "Close",
+    reminderSaved: "Your reminder preference was saved.",
   },
 };
 
@@ -89,9 +114,15 @@ export default function Home() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [legalPage, setLegalPage] = useState<LegalPage>(null);
+  const [now, setNow] = useState(() => new Date());
+  const [reminderOpen, setReminderOpen] = useState(false);
+  const [reminderChannel, setReminderChannel] = useState<ReminderChannel>("email");
+  const [reminderEmail, setReminderEmail] = useState("");
+  const [reminderMessage, setReminderMessage] = useState("");
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const stepRef = useRef<Step>(step);
   const c = copy[lang];
+  const isChatOpen = (() => { const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(now); const hour = Number(parts.find((part) => part.type === "hour")?.value || 0); return hour >= 20 && hour < 23; })();
   const years = useMemo(() => Array.from({ length: 70 }, (_, i) => String(new Date().getFullYear() - i - 16)), []);
 
   useEffect(() => {
@@ -99,6 +130,8 @@ export default function Home() {
     document.title = lang === "vi" ? "Stranger Chat — Trò chuyện với người lạ" : "Stranger Chat — Talk to Strangers Online";
   }, [lang]);
   useEffect(() => { stepRef.current = step; }, [step]);
+  useEffect(() => { const timer = window.setInterval(() => setNow(new Date()), 1000); return () => window.clearInterval(timer); }, []);
+  useEffect(() => { if (isChatOpen && step === "closed") setStep("welcome"); }, [isChatOpen, step]);
 
   useEffect(() => () => { channelRef.current?.unsubscribe(); }, []);
 
@@ -191,11 +224,12 @@ export default function Home() {
   };
 
   const submitStep = () => {
-    if (!canContinue) return;
+    if (!isChatOpen || !canContinue) return;
     if (step === "name") void createSessionAndMatch();
     else setStep("name");
   };
 
+  if (!isChatOpen) return <ClosedScreen c={c} lang={lang} setLang={setLang} now={now} reminderOpen={reminderOpen} setReminderOpen={setReminderOpen} reminderChannel={reminderChannel} setReminderChannel={setReminderChannel} reminderEmail={reminderEmail} setReminderEmail={setReminderEmail} reminderMessage={reminderMessage} setReminderMessage={setReminderMessage} />;
   if (step === "chat") return <ChatView c={c} lang={lang} session={session} messages={messages} sendImage={sendImage} imageBusy={imageBusy} draft={draft} setDraft={setDraft} sendMessage={sendMessage} leaveChat={leaveChat} onLegal={setLegalPage} />;
   if (step === "matching") return <main className="shell matching-shell"><AdSlot label={lang === "vi" ? "Vị trí quảng cáo" : "Advertisement"} variant="top" /><header className="topbar"><Logo compact /><LanguageToggle lang={lang} setLang={setLang} /></header><section className="center-stage matching-stage"><div className="matching-orb"><div className="orb-ring ring-one" /><div className="orb-ring ring-two" /><div className="orb-core"><Sparkles size={29} /></div></div><h1>{c.matching}</h1><p>{c.matchingHint}</p><div className="matching-dots"><i /><i /><i /></div><button className="end-button" onClick={() => leaveChat(false)}><X size={15} />{c.end}</button></section><AdSlot label={lang === "vi" ? "Vị trí quảng cáo" : "Advertisement"} variant="bottom" /><LegalFooter lang={lang} onLegal={setLegalPage} />{legalPage && <LegalModal lang={lang} page={legalPage} onClose={() => setLegalPage(null)} />}</main>;
 
@@ -203,6 +237,14 @@ export default function Home() {
     {step === "welcome" && <><div className="eyebrow"><Globe2 size={14} /> One world, many stories</div><h1>{c.intro}</h1><p className="welcome-copy">{lang === "vi" ? "Gặp một người bạn chưa từng biết, ở bất cứ đâu trên thế giới." : "Meet someone you've never known, anywhere in the world."}</p><button className="primary-button" onClick={() => setStep("gender")}>{c.start}<span>→</span></button><div className="tiny-note"><Users size={14} /> {lang === "vi" ? "Không cần hồ sơ công khai" : "No public profile needed"}</div></>}
     {step !== "welcome" && <><div className="step-count">0{step === "gender" ? 1 : 2} <span>/ 02</span></div>{step === "gender" && <><h1>{c.gender}</h1><div className="choice-grid"><Choice icon="♀" label={lang === "vi" ? "Nữ" : "Woman"} active={form.gender === "female"} onClick={() => updateForm("gender", "female")} /><Choice icon="♂" label={lang === "vi" ? "Nam" : "Man"} active={form.gender === "male"} onClick={() => updateForm("gender", "male")} /><Choice icon="✦" label={lang === "vi" ? "Khác" : "Other"} active={form.gender === "other"} onClick={() => updateForm("gender", "other")} /></div><h2 className="preference-heading">{c.preferredGender}</h2><div className="choice-grid preference-grid"><Choice icon="✦" label={c.anyGender} active={form.preferredGender === "any"} onClick={() => updateForm("preferredGender", "any")} /><Choice icon="♀" label={lang === "vi" ? "Nữ" : "Woman"} active={form.preferredGender === "female"} onClick={() => updateForm("preferredGender", "female")} /><Choice icon="♂" label={lang === "vi" ? "Nam" : "Man"} active={form.preferredGender === "male"} onClick={() => updateForm("preferredGender", "male")} /><Choice icon="✦" label={lang === "vi" ? "Khác" : "Other"} active={form.preferredGender === "other"} onClick={() => updateForm("preferredGender", "other")} /></div></>}{step === "name" && <><h1>{c.name}</h1><div className="profile-form"><input autoFocus className="large-input" value={form.name} onChange={(e) => updateForm("name", e.target.value)} placeholder={c.noName} maxLength={40} /><select className="large-input select-input" value={form.year} onChange={(e) => updateForm("year", e.target.value)}><option value="">{lang === "vi" ? "Chọn năm sinh" : "Select birth year"}</option>{years.map((year) => <option key={year} value={year}>{year}</option>)}</select><select className="large-input select-input" value={form.country} onChange={(e) => updateForm("country", e.target.value)}>{countries.map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select><input className="large-input" value={form.city} onChange={(e) => updateForm("city", e.target.value)} placeholder={lang === "vi" ? "Thành phố" : "City"} /></div><p className="profile-hint">{lang === "vi" ? "Điền nhanh vài thông tin để bắt đầu ghép đôi." : "Add a few details to start matching."}</p></>}{error && <p className="error-text">{error}</p>}<div className="wizard-actions"><button className="text-button" onClick={() => setStep(step === "gender" ? "welcome" : "gender")}>{c.back}</button><button className="primary-button small" disabled={!canContinue || busy} onClick={submitStep}>{busy ? <Loader2 className="spin" size={17} /> : c.continue}<span>→</span></button></div></>}
   </section><AdSlot label={lang === "vi" ? "Vị trí quảng cáo" : "Advertisement"} variant="bottom" /><LegalFooter lang={lang} onLegal={setLegalPage} />{legalPage && <LegalModal lang={lang} page={legalPage} onClose={() => setLegalPage(null)} />}</main>;
+}
+
+function ClosedScreen({ c, lang, setLang, now, reminderOpen, setReminderOpen, reminderChannel, setReminderChannel, reminderEmail, setReminderEmail, reminderMessage, setReminderMessage }: { c: typeof copy.vi; lang: Language; setLang: (value: Language) => void; now: Date; reminderOpen: boolean; setReminderOpen: (value: boolean) => void; reminderChannel: ReminderChannel; setReminderChannel: (value: ReminderChannel) => void; reminderEmail: string; setReminderEmail: (value: string) => void; reminderMessage: string; setReminderMessage: (value: string) => void }) {
+  const countdown = (() => { const next = new Date(now); const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).formatToParts(now); const value = (type: string) => Number(parts.find((part) => part.type === type)?.value || 0); next.setTime(now.getTime()); const localNow = Date.UTC(value("year"), value("month") - 1, value("day"), value("hour"), value("minute"), value("second")); const target = value("hour") >= 20 ? new Date(Date.UTC(value("year"), value("month") - 1, value("day") + 1, 20, 0, 0)) : new Date(Date.UTC(value("year"), value("month") - 1, value("day"), 20, 0, 0)); return Math.max(0, Math.floor((target.getTime() - localNow) / 1000)); })();
+  const h = String(Math.floor(countdown / 3600)).padStart(2, "0"), m = String(Math.floor((countdown % 3600) / 60)).padStart(2, "0"), sec = String(countdown % 60).padStart(2, "0");
+  useEffect(() => { if (countdown === 0) window.location.reload(); }, [countdown]);
+  const save = async () => { setReminderMessage(""); if (reminderChannel === "browser") { if ("Notification" in window) { const permission = await Notification.requestPermission(); if (permission !== "granted") { setReminderMessage("Notification permission was not granted."); return; } } } else if (reminderChannel === "email" && reminderEmail.trim()) { try { await ensureAnonymousAuth(); } catch { setReminderMessage("Could not start a secure reminder session."); return; } const { error } = await supabase.from("chat_open_reminders").insert({ email: reminderEmail.trim(), channel: "email" }); if (error) { setReminderMessage(error.message); return; } } else if (reminderChannel === "telegram") { window.open("https://t.me/", "_blank", "noopener,noreferrer"); } setReminderMessage(c.reminderSaved); };
+  return <main className="shell closed-shell"><AdSlot label={lang === "vi" ? "Vị trí quảng cáo" : "Advertisement"} variant="top" /><header className="topbar"><Logo compact /><LanguageToggle lang={lang} setLang={setLang} /></header><section className="closed-card"><div className="closed-icon"><Bell size={30} /></div><h1>{c.closedTitle}</h1><p>{c.closedMessage}</p><div className="countdown" aria-live="polite">{h}:{m}:{sec}</div><p className="closed-hint">{c.closedHint}</p><button className="primary-button reminder-button" onClick={() => setReminderOpen(true)}><Bell size={17} />{c.remind}</button></section><AdSlot label={lang === "vi" ? "Vị trí quảng cáo" : "Advertisement"} variant="bottom" /><LegalFooter lang={lang} onLegal={() => undefined} />{reminderOpen && <div className="legal-backdrop" role="dialog" aria-modal="true"><article className="reminder-modal"><button className="legal-close" onClick={() => setReminderOpen(false)} aria-label={c.close}><X size={20} /></button><h2>{c.reminderTitle}</h2><div className="reminder-options"><button className={reminderChannel === "email" ? "active" : ""} onClick={() => setReminderChannel("email")}>{c.email}</button><button className={reminderChannel === "browser" ? "active" : ""} onClick={() => setReminderChannel("browser")}>{c.browser}</button><button className={reminderChannel === "telegram" ? "active" : ""} onClick={() => setReminderChannel("telegram")}>{c.telegram}</button></div>{reminderChannel === "email" && <input className="large-input" type="email" value={reminderEmail} onChange={(event) => setReminderEmail(event.target.value)} placeholder={c.emailPlaceholder} />}{reminderMessage && <p className="profile-hint">{reminderMessage}</p>}<button className="primary-button small legal-ok" onClick={() => void save()}>{c.save}</button></article></div>}</main>;
 }
 
 function AdSlot({ label, variant }: { label: string; variant: "top" | "bottom" | "chat" }) { return <div className={`ad-slot ad-${variant}`} aria-label={label}><a className="deal24h-ad" href="https://deal24h.net/" target="_blank" rel="sponsored noopener noreferrer" aria-label="Visit Deal24h.net for coupons, promo codes and deals"><img src="https://deal24h.net/assets/ads/deal24h-banner-580.webp" srcSet="https://deal24h.net/assets/ads/deal24h-banner-580.webp 580w, https://deal24h.net/assets/ads/deal24h-banner-1161.webp 1161w" sizes="(max-width: 640px) 100vw, 580px" width="580" height="678" alt="DEAL 24H — Big Brands, Real Discounts, All in One Place" loading="lazy" decoding="async" /></a></div>; }
