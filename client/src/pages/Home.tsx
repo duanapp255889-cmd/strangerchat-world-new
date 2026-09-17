@@ -34,7 +34,7 @@ const copy = {
     anonymous: "Ẩn danh",
     noName: "Tên của bạn",
     closedTitle: "Phòng chat đang đóng",
-    closedMessage: "Phòng chat mở cửa hàng ngày từ 20:00 - 23:00 (GMT+7).",
+    closedMessage: "Phòng chat mở cửa hàng ngày từ 08:00 - 11:00 và 20:00 - 23:00 (GMT+7).",
     closedHint: "Hãy quay lại sau khi đồng hồ về 0 để tham gia chat cùng hàng ngàn người chơi khác!",
     remind: "Nhắc tôi khi mở cửa",
     reminderTitle: "Nhận nhắc khi phòng mở cửa",
@@ -71,7 +71,7 @@ const copy = {
     anonymous: "Anonymous",
     noName: "Your name",
     closedTitle: "Chat room is closed",
-    closedMessage: "The chat room is open daily from 20:00 - 23:00 (GMT+7).",
+    closedMessage: "The chat room is open daily from 08:00 - 11:00 and 20:00 - 23:00 (GMT+7).",
     closedHint: "Come back when the countdown reaches zero to chat with thousands of other players!",
     remind: "Remind me when it opens",
     reminderTitle: "Get a reminder when chat opens",
@@ -122,7 +122,7 @@ export default function Home() {
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const stepRef = useRef<Step>(step);
   const c = copy[lang];
-  const isChatOpen = (() => { const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(now); const hour = Number(parts.find((part) => part.type === "hour")?.value || 0); return hour >= 20 && hour < 23; })();
+  const isChatOpen = (() => { const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(now); const hour = Number(parts.find((part) => part.type === "hour")?.value || 0); return (hour >= 8 && hour < 11) || (hour >= 20 && hour < 23); })();
   const years = useMemo(() => Array.from({ length: 70 }, (_, i) => String(new Date().getFullYear() - i - 16)), []);
 
   useEffect(() => {
@@ -240,7 +240,7 @@ export default function Home() {
 }
 
 function ClosedScreen({ c, lang, setLang, now, reminderOpen, setReminderOpen, reminderChannel, setReminderChannel, reminderEmail, setReminderEmail, reminderMessage, setReminderMessage, legalPage, setLegalPage }: { c: typeof copy.vi; lang: Language; setLang: (value: Language) => void; now: Date; reminderOpen: boolean; setReminderOpen: (value: boolean) => void; reminderChannel: ReminderChannel; setReminderChannel: (value: ReminderChannel) => void; reminderEmail: string; setReminderEmail: (value: string) => void; reminderMessage: string; setReminderMessage: (value: string) => void; legalPage: LegalPage; setLegalPage: (value: LegalPage) => void }) {
-  const countdown = (() => { const next = new Date(now); const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).formatToParts(now); const value = (type: string) => Number(parts.find((part) => part.type === type)?.value || 0); next.setTime(now.getTime()); const localNow = Date.UTC(value("year"), value("month") - 1, value("day"), value("hour"), value("minute"), value("second")); const target = value("hour") >= 20 ? new Date(Date.UTC(value("year"), value("month") - 1, value("day") + 1, 20, 0, 0)) : new Date(Date.UTC(value("year"), value("month") - 1, value("day"), 20, 0, 0)); return Math.max(0, Math.floor((target.getTime() - localNow) / 1000)); })();
+  const countdown = (() => { const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).formatToParts(now); const value = (type: string) => Number(parts.find((part) => part.type === type)?.value || 0); const hour = value("hour"); const localNow = Date.UTC(value("year"), value("month") - 1, value("day"), hour, value("minute"), value("second")); const targetHour = hour < 8 ? 8 : hour < 20 ? 20 : 8; const nextDay = hour >= 20 ? 1 : 0; const target = new Date(Date.UTC(value("year"), value("month") - 1, value("day") + nextDay, targetHour, 0, 0)); return Math.max(0, Math.floor((target.getTime() - localNow) / 1000)); })();
   const h = String(Math.floor(countdown / 3600)).padStart(2, "0"), m = String(Math.floor((countdown % 3600) / 60)).padStart(2, "0"), sec = String(countdown % 60).padStart(2, "0");
   useEffect(() => { if (countdown === 0) window.location.reload(); }, [countdown]);
   const save = async () => { setReminderMessage(""); if (reminderChannel === "browser") { if ("Notification" in window) { const permission = await Notification.requestPermission(); if (permission !== "granted") { setReminderMessage("Notification permission was not granted."); return; } } } else if (reminderChannel === "email" && reminderEmail.trim()) { try { await ensureAnonymousAuth(); } catch { setReminderMessage("Could not start a secure reminder session."); return; } const { error } = await supabase.from("chat_open_reminders").insert({ email: reminderEmail.trim(), channel: "email" }); if (error) { setReminderMessage(error.message); return; } } else if (reminderChannel === "telegram") { window.open("https://t.me/", "_blank", "noopener,noreferrer"); } setReminderMessage(c.reminderSaved); };
