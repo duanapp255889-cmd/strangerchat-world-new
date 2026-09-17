@@ -1,0 +1,30 @@
+name: Send StrangerChat opening push
+
+on:
+  schedule:
+    - cron: "0 1 * * *"   # 08:00 Asia/Ho_Chi_Minh (UTC+7)
+    - cron: "0 13 * * *"  # 20:00 Asia/Ho_Chi_Minh (UTC+7)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  send-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install push sender
+        run: npm install --no-save web-push@3.6.7
+      - name: Send opening notification
+        env:
+          SUPABASE_URL: https://gwxmuroazeqerskatgqg.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+        run: node scripts/send-open-push.mjs
