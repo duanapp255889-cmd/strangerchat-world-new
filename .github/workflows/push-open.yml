@@ -20,7 +20,7 @@ jobs:
         with:
           node-version: 22
       - name: Install push sender
-        run: npm install --no-save web-push@3.6.7
+        run: npm install --no-save --legacy-peer-deps web-push@3.6.7
       - name: Send opening notification
         env:
           SUPABASE_URL: https://gwxmuroazeqerskatgqg.supabase.co
