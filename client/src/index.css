@@ -164,3 +164,5 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   .reminder-modal { padding: 24px 20px; }
   .reminder-modal h2 { font-size: 23px; }
 }
+
+.reminder-browser-choice { display: flex; align-items: center; gap: 10px; border: 1px solid #a46bc9; border-radius: 12px; padding: 13px 14px; color: #66328b; background: #faf3fc; font-size: 13px; }
