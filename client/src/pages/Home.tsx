@@ -126,6 +126,12 @@ export default function Home() {
   }, [lang]);
   useEffect(() => {
     void (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user?.email?.toLowerCase() === "duanapp255889@gmail.com" && window.location.pathname === "/") {
+        window.history.replaceState({}, "", "/admin");
+        window.dispatchEvent(new PopStateEvent("popstate"));
+        return;
+      }
       const { data: setting } = await supabase.from("site_settings").select("chat_open").eq("id", true).single();
       if (setting) setChatOpen(Boolean(setting.chat_open));
       const storageKey = "strangerchat-visitor-id";
