@@ -3,6 +3,7 @@ import { Bell, LogOut, RefreshCw, Users, Wifi, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 type Stats = { reminders: number; visits: number; chatOpen: boolean; updatedAt: string | null };
+const ADMIN_REDIRECT_URL = "https://strangerchat.world/admin";
 
 export default function Admin() {
   const [email, setEmail] = useState("");
@@ -34,7 +35,7 @@ export default function Admin() {
 
   const sendMagicLink = async (event: FormEvent) => {
     event.preventDefault(); setBusy(true); setMessage("");
-    const { error } = await supabase.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: `${window.location.origin}/admin` } });
+    const { error } = await supabase.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: ADMIN_REDIRECT_URL } });
     setMessage(error ? error.message : "Đã gửi liên kết đăng nhập. Hãy kiểm tra email của bạn."); setBusy(false);
   };
 
