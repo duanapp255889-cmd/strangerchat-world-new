@@ -112,17 +112,28 @@ export default function Home() {
   const [error, setError] = useState("");
   const [legalPage, setLegalPage] = useState<LegalPage>(null);
   const [reminderOpen, setReminderOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const [reminderMessage, setReminderMessage] = useState("");
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const stepRef = useRef<Step>(step);
   const c = copy[lang];
-  const isChatOpen = false;
+  const isChatOpen = chatOpen;
   const years = useMemo(() => Array.from({ length: 70 }, (_, i) => String(new Date().getFullYear() - i - 16)), []);
 
   useEffect(() => {
     document.documentElement.lang = lang;
     document.title = lang === "vi" ? "Stranger Chat — Trò chuyện với người lạ" : "Stranger Chat — Talk to Strangers Online";
   }, [lang]);
+  useEffect(() => {
+    void (async () => {
+      const { data: setting } = await supabase.from("site_settings").select("chat_open").eq("id", true).single();
+      if (setting) setChatOpen(Boolean(setting.chat_open));
+      const storageKey = "strangerchat-visitor-id";
+      let visitorId = window.localStorage.getItem(storageKey);
+      if (!visitorId) { visitorId = crypto.randomUUID(); window.localStorage.setItem(storageKey, visitorId); }
+      await supabase.from("site_visits").insert({ visitor_id: visitorId });
+    })();
+  }, []);
   useEffect(() => { stepRef.current = step; }, [step]);
 
   useEffect(() => () => { channelRef.current?.unsubscribe(); }, []);
