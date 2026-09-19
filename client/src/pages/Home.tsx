@@ -32,9 +32,9 @@ const copy = {
     empty: "Hãy bắt đầu bằng một lời chào.",
     anonymous: "Ẩn danh",
     noName: "Tên của bạn",
-    closedTitle: "Phòng chat đang đóng",
-    closedMessage: "Phòng chat mở cửa hàng ngày từ 08:00 - 11:00 và 20:00 - 23:00 (GMT+7).",
-    closedHint: "Hãy quay lại sau khi đồng hồ về 0 để tham gia chat cùng hàng ngàn người chơi khác!",
+    closedTitle: "Phòng chat đang tạm đóng",
+    closedMessage: "Phòng chat đang tạm đóng để nâng cấp và sẽ mở lại khi có thông báo mới.",
+    closedHint: "Hãy bật thông báo trình duyệt để nhận tin ngay khi phòng chat mở lại.",
     remind: "Nhắc tôi khi mở cửa",
     reminderTitle: "Nhận nhắc khi phòng mở cửa",
     browser: "Thông báo trình duyệt",
@@ -66,9 +66,9 @@ const copy = {
     empty: "Start with a hello.",
     anonymous: "Anonymous",
     noName: "Your name",
-    closedTitle: "Chat room is closed",
-    closedMessage: "The chat room is open daily from 08:00 - 11:00 and 20:00 - 23:00 (GMT+7).",
-    closedHint: "Come back when the countdown reaches zero to chat with thousands of other players!",
+    closedTitle: "Chat room temporarily closed",
+    closedMessage: "The chat room is temporarily closed for upgrades and will reopen when announced.",
+    closedHint: "Enable browser notifications to hear from us as soon as chat reopens.",
     remind: "Remind me when it opens",
     reminderTitle: "Get a reminder when chat opens",
     browser: "Browser notifications",
@@ -111,13 +111,12 @@ export default function Home() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [legalPage, setLegalPage] = useState<LegalPage>(null);
-  const [now, setNow] = useState(() => new Date());
   const [reminderOpen, setReminderOpen] = useState(false);
   const [reminderMessage, setReminderMessage] = useState("");
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const stepRef = useRef<Step>(step);
   const c = copy[lang];
-  const isChatOpen = (() => { const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(now); const hour = Number(parts.find((part) => part.type === "hour")?.value || 0); return (hour >= 8 && hour < 11) || (hour >= 20 && hour < 23); })();
+  const isChatOpen = false;
   const years = useMemo(() => Array.from({ length: 70 }, (_, i) => String(new Date().getFullYear() - i - 16)), []);
 
   useEffect(() => {
@@ -125,8 +124,6 @@ export default function Home() {
     document.title = lang === "vi" ? "Stranger Chat — Trò chuyện với người lạ" : "Stranger Chat — Talk to Strangers Online";
   }, [lang]);
   useEffect(() => { stepRef.current = step; }, [step]);
-  useEffect(() => { const timer = window.setInterval(() => setNow(new Date()), 1000); return () => window.clearInterval(timer); }, []);
-  useEffect(() => { if (isChatOpen && step === "closed") setStep("welcome"); }, [isChatOpen, step]);
 
   useEffect(() => () => { channelRef.current?.unsubscribe(); }, []);
 
@@ -224,7 +221,7 @@ export default function Home() {
     else setStep("name");
   };
 
-  if (!isChatOpen) return <ClosedScreen c={c} lang={lang} setLang={setLang} now={now} reminderOpen={reminderOpen} setReminderOpen={setReminderOpen} reminderMessage={reminderMessage} setReminderMessage={setReminderMessage} legalPage={legalPage} setLegalPage={setLegalPage} />;
+  if (!isChatOpen) return <ClosedScreen c={c} lang={lang} setLang={setLang} reminderOpen={reminderOpen} setReminderOpen={setReminderOpen} reminderMessage={reminderMessage} setReminderMessage={setReminderMessage} legalPage={legalPage} setLegalPage={setLegalPage} />;
   if (step === "chat") return <ChatView c={c} lang={lang} session={session} messages={messages} sendImage={sendImage} imageBusy={imageBusy} draft={draft} setDraft={setDraft} sendMessage={sendMessage} leaveChat={leaveChat} onLegal={setLegalPage} />;
   if (step === "matching") return <main className="shell matching-shell"><AdSlot label={lang === "vi" ? "Vị trí quảng cáo" : "Advertisement"} variant="top" /><header className="topbar"><Logo compact /><LanguageToggle lang={lang} setLang={setLang} /></header><section className="center-stage matching-stage"><div className="matching-orb"><div className="orb-ring ring-one" /><div className="orb-ring ring-two" /><div className="orb-core"><Sparkles size={29} /></div></div><h1>{c.matching}</h1><p>{c.matchingHint}</p><div className="matching-dots"><i /><i /><i /></div><button className="end-button" onClick={() => leaveChat(false)}><X size={15} />{c.end}</button></section><AdSlot label={lang === "vi" ? "Vị trí quảng cáo" : "Advertisement"} variant="bottom" /><LegalFooter lang={lang} onLegal={setLegalPage} />{legalPage && <LegalModal lang={lang} page={legalPage} onClose={() => setLegalPage(null)} />}</main>;
 
@@ -234,12 +231,9 @@ export default function Home() {
   </section><AdSlot label={lang === "vi" ? "Vị trí quảng cáo" : "Advertisement"} variant="bottom" /><LegalFooter lang={lang} onLegal={setLegalPage} />{legalPage && <LegalModal lang={lang} page={legalPage} onClose={() => setLegalPage(null)} />}</main>;
 }
 
-function ClosedScreen({ c, lang, setLang, now, reminderOpen, setReminderOpen, reminderMessage, setReminderMessage, legalPage, setLegalPage }: { c: typeof copy.vi; lang: Language; setLang: (value: Language) => void; now: Date; reminderOpen: boolean; setReminderOpen: (value: boolean) => void; reminderMessage: string; setReminderMessage: (value: string) => void; legalPage: LegalPage; setLegalPage: (value: LegalPage) => void }) {
-  const countdown = (() => { const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).formatToParts(now); const value = (type: string) => Number(parts.find((part) => part.type === type)?.value || 0); const hour = value("hour"); const localNow = Date.UTC(value("year"), value("month") - 1, value("day"), hour, value("minute"), value("second")); const targetHour = hour < 8 ? 8 : hour < 20 ? 20 : 8; const nextDay = hour >= 20 ? 1 : 0; const target = new Date(Date.UTC(value("year"), value("month") - 1, value("day") + nextDay, targetHour, 0, 0)); return Math.max(0, Math.floor((target.getTime() - localNow) / 1000)); })();
-  const h = String(Math.floor(countdown / 3600)).padStart(2, "0"), m = String(Math.floor((countdown % 3600) / 60)).padStart(2, "0"), sec = String(countdown % 60).padStart(2, "0");
-  useEffect(() => { if (countdown === 0) window.location.reload(); }, [countdown]);
+function ClosedScreen({ c, lang, setLang, reminderOpen, setReminderOpen, reminderMessage, setReminderMessage, legalPage, setLegalPage }: { c: typeof copy.vi; lang: Language; setLang: (value: Language) => void; reminderOpen: boolean; setReminderOpen: (value: boolean) => void; reminderMessage: string; setReminderMessage: (value: string) => void; legalPage: LegalPage; setLegalPage: (value: LegalPage) => void }) {
   const save = async () => { setReminderMessage(""); if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) { setReminderMessage("Trình duyệt này không hỗ trợ thông báo đẩy."); return; } const permission = await Notification.requestPermission(); if (permission !== "granted") { setReminderMessage("Bạn chưa cấp quyền thông báo cho trình duyệt."); return; } try { await ensureAnonymousAuth(); const registration = await navigator.serviceWorker.register("/sw.js"); const existing = await registration.pushManager.getSubscription(); const subscription = existing || await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(PUSH_PUBLIC_KEY) }); const json = subscription.toJSON(); const { error } = await supabase.from("chat_open_reminders").upsert({ channel: "browser", endpoint: json.endpoint, p256dh: json.keys?.p256dh, auth: json.keys?.auth, user_agent: navigator.userAgent }, { onConflict: "endpoint" }); if (error) throw error; setReminderMessage(c.reminderSaved); } catch { setReminderMessage("Không thể bật thông báo lúc này. Vui lòng thử lại."); } };
-  return <main className="shell closed-shell"><AdSlot label={lang === "vi" ? "Vị trí quảng cáo" : "Advertisement"} variant="top" /><header className="topbar"><Logo compact /><LanguageToggle lang={lang} setLang={setLang} /></header><section className="closed-card"><div className="closed-icon"><Bell size={30} /></div><h1>{c.closedTitle}</h1><p>{c.closedMessage}</p><div className="countdown" aria-live="polite">{h}:{m}:{sec}</div><p className="closed-hint">{c.closedHint}</p><button className="primary-button reminder-button" onClick={() => setReminderOpen(true)}><Bell size={17} />{c.remind}</button></section><AdSlot label={lang === "vi" ? "Vị trí quảng cáo" : "Advertisement"} variant="bottom" /><LegalFooter lang={lang} onLegal={setLegalPage} />{reminderOpen && <div className="legal-backdrop" role="dialog" aria-modal="true"><article className="reminder-modal"><button className="legal-close" onClick={() => setReminderOpen(false)} aria-label={c.close}><X size={20} /></button><h2>{c.reminderTitle}</h2><div className="reminder-options"><div className="reminder-browser-choice"><Bell size={18} />{c.browser}</div></div>{reminderMessage && <p className="profile-hint">{reminderMessage}</p>}<button className="primary-button small legal-ok" onClick={() => void save()}>{c.save}</button></article></div>}{legalPage && <LegalModal lang={lang} page={legalPage} onClose={() => setLegalPage(null)} />}</main>;
+  return <main className="shell closed-shell"><AdSlot label={lang === "vi" ? "Vị trí quảng cáo" : "Advertisement"} variant="top" /><header className="topbar"><Logo compact /><LanguageToggle lang={lang} setLang={setLang} /></header><section className="closed-card"><div className="closed-icon"><Bell size={30} /></div><h1>{c.closedTitle}</h1><p>{c.closedMessage}</p><div className="closed-status"><Bell size={15} /> {lang === "vi" ? "Sẽ thông báo khi mở lại" : "We will notify you when it reopens"}</div><p className="closed-hint">{c.closedHint}</p><button className="primary-button reminder-button" onClick={() => setReminderOpen(true)}><Bell size={17} />{c.remind}</button></section><AdSlot label={lang === "vi" ? "Vị trí quảng cáo" : "Advertisement"} variant="bottom" /><LegalFooter lang={lang} onLegal={setLegalPage} />{reminderOpen && <div className="legal-backdrop" role="dialog" aria-modal="true"><article className="reminder-modal"><button className="legal-close" onClick={() => setReminderOpen(false)} aria-label={c.close}><X size={20} /></button><h2>{c.reminderTitle}</h2><div className="reminder-options"><div className="reminder-browser-choice"><Bell size={18} />{c.browser}</div></div>{reminderMessage && <p className="profile-hint">{reminderMessage}</p>}<button className="primary-button small legal-ok" onClick={() => void save()}>{c.save}</button></article></div>}{legalPage && <LegalModal lang={lang} page={legalPage} onClose={() => setLegalPage(null)} />}</main>;
 }
 
 function AdSlot({ label, variant }: { label: string; variant: "top" | "bottom" | "chat" }) { return <div className={`ad-slot ad-${variant}`} aria-label={label}><a className="deal24h-ad" href="https://deal24h.net/" target="_blank" rel="sponsored noopener noreferrer" aria-label="Visit Deal24h.net for coupons, promo codes and deals"><img src="https://deal24h.net/assets/ads/deal24h-banner-580.webp" srcSet="https://deal24h.net/assets/ads/deal24h-banner-580.webp 580w, https://deal24h.net/assets/ads/deal24h-banner-1161.webp 1161w" sizes="(max-width: 640px) 100vw, 580px" width="580" height="678" alt="DEAL 24H — Big Brands, Real Discounts, All in One Place" loading="lazy" decoding="async" /></a></div>; }

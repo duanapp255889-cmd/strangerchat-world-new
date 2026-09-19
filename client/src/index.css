@@ -166,3 +166,6 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 }
 
 .reminder-browser-choice { display: flex; align-items: center; gap: 10px; border: 1px solid #a46bc9; border-radius: 12px; padding: 13px 14px; color: #66328b; background: #faf3fc; font-size: 13px; }
+
+.closed-status { display: inline-flex; align-items: center; gap: 8px; margin-top: 22px; padding: 9px 13px; border-radius: 999px; color: #76508f; background: #faf3fc; border: 1px solid #eadcf0; font-size: 12px; }
+@media (max-width: 620px) { .closed-status { margin-top: 16px; font-size: 10px; } }
