@@ -34,6 +34,8 @@ jobs:
           VITE_SUPABASE_URL: https://gwxmuroazeqerskatgqg.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_GbloRMzbptNIDNRBLySa7Q_LGC8heQN
         run: pnpm build
+      - name: Add SPA fallback for direct routes
+        run: cp dist/public/index.html dist/public/404.html
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
